@@ -1,0 +1,54 @@
+version: "3.7"
+services:
+  backend:
+    image: backend:latest
+    environment:
+      - DATABASE_HOST=app_db
+    build: ./
+    ports:
+      - '8000:80'
+    command: /app/entrypoint.sh
+    env_file: .env
+    networks:
+      &network_mode
+      - bridgenet
+    depends_on:
+      - app_db
+
+  consumer:
+    image: backend:latest
+    container_name: consumer
+    environment:
+      - DATABASE_HOST=app_db
+      - RABBIT_MQ_HOST=rabbitmq
+    entrypoint: >
+      sh -c "sleep 20 && python /app/app/consumer.py"
+    env_file: .env
+    networks:
+      &network_mode
+      - bridgenet
+    depends_on:
+      - app_db
+      - rabbitmq
+
+  rabbitmq:
+    image: rabbitmq:3.11.6-management-alpine
+    networks: *network_mode
+    env_file: .env
+    ports:
+      - 5672:5672
+      - 15672:15672
+
+  app_db:
+    image: postgres:13.9
+    networks: *network_mode
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - 5432:5432
+
+networks:
+  bridgenet:
+    driver: bridge
